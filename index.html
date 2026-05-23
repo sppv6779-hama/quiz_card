@@ -113,6 +113,45 @@
     .result-number { font-size:2.2rem; font-weight:900; color:#fcd34d; text-shadow:0 0 18px rgba(245,158,11,.45); }
     .review-list { margin-top:18px; display:grid; gap:12px; }
     .review-item { border-radius:14px; padding:14px; }
+    .gacha-result-card,.book-card {
+      background: linear-gradient(165deg, rgba(15,23,42,.75), rgba(30,41,59,.7)); border:1px solid rgba(125,211,252,.25); border-radius:18px; padding:18px;
+    }
+    .gacha-preview {
+      height: 240px; border-radius: 14px; overflow: hidden;
+      margin: 14px 0; border: 1px solid rgba(129,140,248,.35);
+      background: rgba(15, 23, 42, 0.8);
+    }
+    .gacha-preview img {
+      width: 100%; height: 100%; object-fit: cover; display:block;
+    }
+    .book-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:12px; margin:16px 0; }
+    .rarity-N { color: #e2e8f0; }
+    .rarity-R { color: #60a5fa; }
+    .rarity-SR { color: #f59e0b; }
+    .rarity-SSR { color: #f472b6; }
+    .video-overlay {
+      position: fixed; inset: 0; z-index: 1000; display: none;
+      background: #050714;
+    }
+    .video-overlay.active { display: grid; place-items: center; }
+    .video-overlay video { width: 100vw; height: 100vh; object-fit: cover; }
+    .fallback-fx {
+      width: 100vw; height: 100vh; display: none; place-items:center;
+      background:
+        radial-gradient(circle at 50% 50%, rgba(251,191,36,.15), transparent 35%),
+        conic-gradient(from 0deg, rgba(56,189,248,.25), rgba(244,114,182,.2), rgba(56,189,248,.25));
+      animation: spinBg 1.8s linear infinite;
+    }
+    .fallback-fx.show { display: grid; }
+    .fallback-fx-inner {
+      width: 260px; height: 260px; border-radius: 50%;
+      border: 6px solid rgba(255,255,255,.2); border-top-color: #facc15;
+      animation: spinCore 0.9s linear infinite;
+      display:grid; place-items:center; font-weight:900; color:#e0f2fe; text-shadow: 0 0 12px rgba(56,189,248,.6);
+      background: rgba(15, 23, 42, .55);
+    }
+    @keyframes spinBg { to { transform: rotate(360deg); } }
+    @keyframes spinCore { to { transform: rotate(360deg); } }
   </style>
 </head>
 <body>
@@ -132,6 +171,8 @@
         </div>
         <div class="actions">
           <button onclick="showScreen('unitScreen')">スタート</button>
+          <button onclick="showScreen('gachaScreen')">ガチャ</button>
+          <button onclick="showScreen('cardBookScreen')">カード図鑑</button>
           <button class="secondary" onclick="resetCoins()">コインをリセット</button>
         </div>
       </div>
@@ -200,8 +241,43 @@
         <button class="secondary" onclick="showScreen('titleScreen')">タイトルへ</button>
       </div>
     </section>
-  </main>
 
+    <section id="gachaScreen" class="screen">
+      <h2>理科ガチャ</h2>
+      <p class="lead">1回 10コイン。重複カードが出たら3コイン還元されます。</p>
+      <div class="status-bar">
+        <span class="badge">🪙 所持コイン：<span id="gachaCoinDisplay">0</span></span>
+      </div>
+      <div class="actions">
+        <button id="drawGachaButton" onclick="drawGacha()">ガチャを引く（10コイン）</button>
+        <button class="secondary" onclick="showScreen('titleScreen')">タイトルへ</button>
+      </div>
+      <div id="gachaResult" class="gacha-result-card" style="margin-top:16px;">
+        <p class="lead">ここにガチャ結果が表示されます。</p>
+      </div>
+    </section>
+
+    <section id="cardBookScreen" class="screen">
+      <h2>カード図鑑</h2>
+      <p class="lead">「身近な生物」シリーズ全10種。集めたカード情報が表示されます。</p>
+      <div class="status-bar">
+        <span class="badge">📚 コンプ率：<span id="completionRate">0%</span></span>
+      </div>
+      <div id="cardBookList" class="book-grid"></div>
+      <div class="actions">
+        <button class="secondary" onclick="showScreen('titleScreen')">タイトルへ戻る</button>
+      </div>
+    </section>
+  </main>
+  <div id="gachaVideoOverlay" class="video-overlay" aria-hidden="true">
+    <video id="gachaVideo" playsinline muted preload="auto">
+      <source src="https://drive.google.com/uc?export=view&id=1nls8H9qvkSXF6xLeQdVJYuILp7xPwEbm" type="video/mp4">
+    </video>
+    <div id="gachaFallbackFx" class="fallback-fx">
+      <div class="fallback-fx-inner">GACHA</div>
+    </div>
+  </div>
+  <script src="./cards-data.js"></script>
   <script>
     // =============================
     // 仮問題データ
@@ -435,6 +511,12 @@
     ];
 
     const QUIZ_LENGTH = 10;
+    const GACHA_COST = 10;
+    const GACHA_REFUND = Math.floor(GACHA_COST * 0.3);
+    const ACTIVE_PACK_ID = "pack_continental_champions";
+    const activePack = (SCIENCE_CARD_PACKS || []).find(pack => pack.id === ACTIVE_PACK_ID) || (SCIENCE_CARD_PACKS || [])[0];
+    const scienceCards = activePack ? activePack.cards : [];
+    const rarityWeights = { N: 40, R: 30, SR: 20, SSR: 10 };
     let quizQuestions = [];
     let currentIndex = 0;
     let sessionCoins = 0;
@@ -448,6 +530,8 @@
       document.querySelectorAll('.screen').forEach(screen => screen.classList.remove('active'));
       document.getElementById(id).classList.add('active');
       updateCoinDisplay();
+      if (id === 'gachaScreen') renderGachaStatus();
+      if (id === 'cardBookScreen') renderCardBook();
     }
 
     function getCoins() {
@@ -460,7 +544,133 @@
     }
 
     function updateCoinDisplay() {
-      document.getElementById('coinDisplay').textContent = getCoins();
+      const coins = getCoins();
+      document.getElementById('coinDisplay').textContent = coins;
+      const gachaCoinDisplay = document.getElementById('gachaCoinDisplay');
+      if (gachaCoinDisplay) gachaCoinDisplay.textContent = coins;
+      const drawButton = document.getElementById('drawGachaButton');
+      if (drawButton) drawButton.disabled = coins < GACHA_COST;
+    }
+
+    function getOwnedScienceCards() {
+      try {
+        const raw = JSON.parse(localStorage.getItem('ownedScienceCards') || '[]');
+        return Array.isArray(raw) ? raw : [];
+      } catch {
+        return [];
+      }
+    }
+
+    function setOwnedScienceCards(cardIds) {
+      localStorage.setItem('ownedScienceCards', JSON.stringify(cardIds));
+    }
+
+    function pickRarity() {
+      const roll = Math.random() * 100;
+      let cumulative = 0;
+      for (const rarity of ["N", "R", "SR", "SSR"]) {
+        cumulative += rarityWeights[rarity];
+        if (roll < cumulative) return rarity;
+      }
+      return "N";
+    }
+
+    function pickCardByRarity(rarity) {
+      const pool = scienceCards.filter(card => card.rarity === rarity);
+      return pool[Math.floor(Math.random() * pool.length)];
+    }
+
+    function drawGacha() {
+      const coins = getCoins();
+      if (coins < GACHA_COST) {
+        alert('理科コインが足りません。10コイン必要です。');
+        return;
+      }
+      setCoins(coins - GACHA_COST);
+      playGachaSequence();
+    }
+
+    function playGachaSequence() {
+      const overlay = document.getElementById('gachaVideoOverlay');
+      const video = document.getElementById('gachaVideo');
+      const fallbackFx = document.getElementById('gachaFallbackFx');
+      overlay.classList.add('active');
+      fallbackFx.classList.remove('show');
+
+      let fallbackShown = false;
+      const showFallback = () => {
+        if (fallbackShown) return;
+        fallbackShown = true;
+        fallbackFx.classList.add('show');
+      };
+
+      video.currentTime = 0;
+      video.onloadeddata = () => {
+        video.play().catch(showFallback);
+      };
+      video.onerror = showFallback;
+      video.onstalled = showFallback;
+      video.play().catch(showFallback);
+
+      setTimeout(() => {
+        video.pause();
+        overlay.classList.remove('active');
+        executeGachaResult();
+      }, 5000);
+    }
+
+    function executeGachaResult() {
+      const rarity = pickRarity();
+      const card = pickCardByRarity(rarity);
+      const owned = getOwnedScienceCards();
+      const isNew = !owned.includes(card.id);
+      let message = "新しいカードを獲得！";
+
+      if (isNew) {
+        setOwnedScienceCards([...owned, card.id]);
+      } else {
+        setCoins(getCoins() + GACHA_REFUND);
+        message = `すでに持っています。${GACHA_REFUND}コイン還元！`;
+      }
+
+      const result = document.getElementById("gachaResult");
+      result.innerHTML = `
+        <h3>ガチャ結果（${activePack?.name || "カードパック"}）</h3>
+        <div class="gacha-preview"><img src="${card.imageUrl}" alt="${card.name}" loading="lazy"></div>
+        <p><strong>カード名：</strong>${card.name}</p>
+        <p><strong>レア度：</strong><span class="rarity-${card.rarity}">${card.rarity}</span></p>
+        <p class="small">${message}</p>
+      `;
+      renderCardBook();
+      renderGachaStatus();
+    }
+
+    function renderGachaStatus() {
+      updateCoinDisplay();
+    }
+
+    function renderCardBook() {
+      const owned = getOwnedScienceCards();
+      const list = document.getElementById('cardBookList');
+      const completion = Math.round((owned.length / scienceCards.length) * 100);
+      document.getElementById('completionRate').textContent = `${completion}% (${owned.length}/${scienceCards.length})`;
+      list.innerHTML = '';
+
+      scienceCards.forEach(card => {
+        const hasCard = owned.includes(card.id);
+        const el = document.createElement('div');
+        el.className = 'book-card';
+        el.innerHTML = hasCard
+          ? `<h3>${card.name}</h3>
+             <div class="gacha-preview"><img src="${card.imageUrl}" alt="${card.name}" loading="lazy"></div>
+             <p><strong>レア度：</strong><span class="rarity-${card.rarity}">${card.rarity}</span></p>
+             <p class="small">カードパック「${activePack?.name || "不明"}」の所持カードです。</p>`
+          : `<h3>？？？</h3>
+             <div class="gacha-preview"></div>
+             <p><strong>レア度：</strong>？？？</p>
+             <p class="small">未所持のカードです。</p>`;
+        list.appendChild(el);
+      });
     }
 
     function resetCoins() {

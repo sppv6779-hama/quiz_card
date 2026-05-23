@@ -244,6 +244,42 @@
     </section>
   </main>
 
+    <section id="gachaScreen" class="screen">
+      <h2>理科ガチャ</h2>
+      <p class="lead">1回 10コイン。重複カードが出たら3コイン還元されます。</p>
+      <div class="status-bar">
+        <span class="badge">🪙 所持コイン：<span id="gachaCoinDisplay">0</span></span>
+      </div>
+      <div class="actions">
+        <button id="drawGachaButton" onclick="drawGacha()">ガチャを引く（10コイン）</button>
+        <button class="secondary" onclick="showScreen('titleScreen')">タイトルへ</button>
+      </div>
+      <div id="gachaResult" class="gacha-result-card" style="margin-top:16px;">
+        <p class="lead">ここにガチャ結果が表示されます。</p>
+      </div>
+    </section>
+
+    <section id="cardBookScreen" class="screen">
+      <h2>カード図鑑</h2>
+      <p class="lead">「身近な生物」シリーズ全10種。集めたカード情報が表示されます。</p>
+      <div class="status-bar">
+        <span class="badge">📚 コンプ率：<span id="completionRate">0%</span></span>
+      </div>
+      <div id="cardBookList" class="book-grid"></div>
+      <div class="actions">
+        <button class="secondary" onclick="showScreen('titleScreen')">タイトルへ戻る</button>
+      </div>
+    </section>
+  </main>
+  <div id="gachaVideoOverlay" class="video-overlay" aria-hidden="true">
+    <video id="gachaVideo" playsinline muted preload="auto">
+      <source src="https://drive.google.com/uc?export=view&id=1nls8H9qvkSXF6xLeQdVJYuILp7xPwEbm" type="video/mp4">
+    </video>
+    <div id="gachaFallbackFx" class="fallback-fx">
+      <div class="fallback-fx-inner">GACHA</div>
+    </div>
+  </div>
+  <script src="./cards-data.js"></script>
   <script>
     // =============================
     // 仮問題データ

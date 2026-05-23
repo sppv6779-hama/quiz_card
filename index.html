@@ -1,0 +1,891 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>理科学習クイズ 試作版</title>
+  <style>
+    :root {
+      --main: #2f80ed;
+      --sub: #56ccf2;
+      --bg: #f4f8fb;
+      --card: #ffffff;
+      --text: #1f2937;
+      --muted: #6b7280;
+      --ok: #16a34a;
+      --ng: #dc2626;
+      --border: #dbe4ee;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: linear-gradient(135deg, #e0f2fe, #f8fafc);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    .app {
+      width: min(960px, 100%);
+      margin: 0 auto;
+      padding: 24px;
+    }
+
+    .screen {
+      display: none;
+      background: var(--card);
+      border-radius: 24px;
+      padding: 28px;
+      box-shadow: 0 18px 40px rgba(15, 23, 42, 0.12);
+      border: 1px solid rgba(255, 255, 255, 0.8);
+    }
+
+    .screen.active {
+      display: block;
+      animation: fadeIn 0.25s ease;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(8px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    h1, h2, h3 {
+      margin-top: 0;
+    }
+
+    h1 {
+      font-size: clamp(2rem, 5vw, 3.2rem);
+      line-height: 1.15;
+    }
+
+    .lead {
+      color: var(--muted);
+      font-size: 1.05rem;
+      line-height: 1.7;
+    }
+
+    .hero {
+      display: grid;
+      gap: 20px;
+    }
+
+    .status-bar {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin: 20px 0;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 12px;
+      border-radius: 999px;
+      background: #eff6ff;
+      color: #1d4ed8;
+      font-weight: 700;
+      font-size: 0.95rem;
+    }
+
+    .unit-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 14px;
+      margin: 20px 0;
+    }
+
+    .unit-card {
+      border: 2px solid var(--border);
+      border-radius: 18px;
+      padding: 16px;
+      cursor: pointer;
+      transition: 0.2s;
+      display: flex;
+      gap: 12px;
+      align-items: flex-start;
+    }
+
+    .unit-card:hover {
+      border-color: var(--main);
+      transform: translateY(-2px);
+    }
+
+    .unit-card input {
+      margin-top: 4px;
+      transform: scale(1.2);
+    }
+
+    .unit-title {
+      font-weight: 800;
+      margin-bottom: 4px;
+    }
+
+    .unit-desc {
+      color: var(--muted);
+      font-size: 0.9rem;
+      line-height: 1.5;
+    }
+
+    button {
+      border: none;
+      border-radius: 14px;
+      padding: 13px 18px;
+      background: var(--main);
+      color: white;
+      font-weight: 800;
+      font-size: 1rem;
+      cursor: pointer;
+      box-shadow: 0 8px 18px rgba(47, 128, 237, 0.25);
+      transition: 0.18s;
+    }
+
+    button:hover {
+      filter: brightness(1.04);
+      transform: translateY(-1px);
+    }
+
+    button.secondary {
+      background: #e5e7eb;
+      color: #111827;
+      box-shadow: none;
+    }
+
+    button.warning {
+      background: #f59e0b;
+      box-shadow: 0 8px 18px rgba(245, 158, 11, 0.25);
+    }
+
+    button:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .actions {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-top: 20px;
+    }
+
+    .quiz-top {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+      align-items: center;
+      margin-bottom: 20px;
+    }
+
+    .progress {
+      height: 12px;
+      background: #e5e7eb;
+      border-radius: 999px;
+      overflow: hidden;
+      margin: 16px 0 24px;
+    }
+
+    .progress-fill {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, var(--main), var(--sub));
+      transition: width 0.25s ease;
+    }
+
+    .question-box {
+      background: #f8fafc;
+      border: 2px solid var(--border);
+      border-radius: 22px;
+      padding: 24px;
+      margin-bottom: 20px;
+    }
+
+    .question-text {
+      font-size: clamp(1.25rem, 3vw, 1.8rem);
+      font-weight: 800;
+      line-height: 1.6;
+    }
+
+    .meta {
+      color: var(--muted);
+      font-weight: 700;
+      margin-bottom: 10px;
+    }
+
+    input[type="text"] {
+      width: 100%;
+      padding: 16px;
+      border: 2px solid var(--border);
+      border-radius: 16px;
+      font-size: 1.2rem;
+      margin-top: 16px;
+    }
+
+    input[type="text"]:focus {
+      outline: none;
+      border-color: var(--main);
+      box-shadow: 0 0 0 4px rgba(47, 128, 237, 0.12);
+    }
+
+    .choices {
+      display: none;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 12px;
+      margin-top: 16px;
+    }
+
+    .choices.show {
+      display: grid;
+    }
+
+    .choice-btn {
+      background: #ffffff;
+      color: var(--text);
+      border: 2px solid var(--border);
+      box-shadow: none;
+      text-align: left;
+      min-height: 60px;
+    }
+
+    .choice-btn:hover {
+      border-color: var(--main);
+      background: #eff6ff;
+    }
+
+    .feedback {
+      margin-top: 18px;
+      padding: 16px;
+      border-radius: 16px;
+      display: none;
+      line-height: 1.6;
+    }
+
+    .feedback.ok {
+      display: block;
+      background: #dcfce7;
+      color: #166534;
+      border: 1px solid #86efac;
+    }
+
+    .feedback.ng {
+      display: block;
+      background: #fee2e2;
+      color: #991b1b;
+      border: 1px solid #fecaca;
+    }
+
+    .result-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 14px;
+      margin: 24px 0;
+    }
+
+    .result-card {
+      background: #f8fafc;
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      padding: 18px;
+      text-align: center;
+    }
+
+    .result-number {
+      font-size: 2.2rem;
+      font-weight: 900;
+      color: var(--main);
+    }
+
+    .review-list {
+      margin-top: 18px;
+      display: grid;
+      gap: 12px;
+    }
+
+    .review-item {
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 14px;
+      background: #fff;
+    }
+
+    .small {
+      font-size: 0.9rem;
+      color: var(--muted);
+    }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <section id="titleScreen" class="screen active">
+      <div class="hero">
+        <div>
+          <h1>理科学習クイズ<br>試作版</h1>
+          <p class="lead">
+            単元を選んで10問チャレンジ。入力式で答えると3コイン、4択に切り替えて正解すると1コインです。
+          </p>
+        </div>
+        <div class="status-bar">
+          <span class="badge">🧪 理科コイン：<span id="coinDisplay">0</span></span>
+          <span class="badge">🎯 出題数：10問</span>
+          <span class="badge">⭐ 入力式 3コイン / 4択 1コイン</span>
+        </div>
+        <div class="actions">
+          <button onclick="showScreen('unitScreen')">スタート</button>
+          <button class="secondary" onclick="resetCoins()">コインをリセット</button>
+        </div>
+      </div>
+    </section>
+
+    <section id="unitScreen" class="screen">
+      <h2>単元を選択</h2>
+      <p class="lead">チェックした単元の中からランダムに10問出題します。まずは植物分野の仮問題を入れています。</p>
+      <div id="unitList" class="unit-grid"></div>
+      <div class="actions">
+        <button onclick="startQuiz()">10問チャレンジ開始</button>
+        <button class="secondary" onclick="showScreen('titleScreen')">戻る</button>
+      </div>
+    </section>
+
+    <section id="quizScreen" class="screen">
+      <div class="quiz-top">
+        <div class="badge">問題 <span id="currentNumber">1</span> / <span id="totalNumber">10</span></div>
+        <div class="badge">今回の獲得予定：<span id="sessionCoinDisplay">0</span> コイン</div>
+      </div>
+      <div class="progress"><div id="progressFill" class="progress-fill"></div></div>
+
+      <div class="question-box">
+        <div id="questionMeta" class="meta"></div>
+        <div id="questionText" class="question-text"></div>
+        <input id="answerInput" type="text" placeholder="答えを入力" autocomplete="off" />
+        <div id="choices" class="choices"></div>
+        <div id="feedback" class="feedback"></div>
+      </div>
+
+      <div class="actions">
+        <button id="answerButton" onclick="checkInputAnswer()">入力で答える</button>
+        <button id="choiceButton" class="warning" onclick="switchToChoices()">4択にする</button>
+        <button id="nextButton" class="secondary" onclick="nextQuestion()" disabled>次の問題へ</button>
+      </div>
+    </section>
+
+    <section id="resultScreen" class="screen">
+      <h2>結果発表</h2>
+      <p class="lead">10問チャレンジの結果です。</p>
+
+      <div class="result-grid">
+        <div class="result-card">
+          <div class="result-number" id="resultCorrect">0</div>
+          <div>正解数</div>
+        </div>
+        <div class="result-card">
+          <div class="result-number" id="resultInputCorrect">0</div>
+          <div>入力式正解</div>
+        </div>
+        <div class="result-card">
+          <div class="result-number" id="resultChoiceCorrect">0</div>
+          <div>4択正解</div>
+        </div>
+        <div class="result-card">
+          <div class="result-number" id="resultCoins">0</div>
+          <div>獲得コイン</div>
+        </div>
+      </div>
+
+      <h3>間違えた問題</h3>
+      <div id="wrongList" class="review-list"></div>
+
+      <div class="actions">
+        <button onclick="showScreen('unitScreen')">もう一度挑戦</button>
+        <button class="secondary" onclick="showScreen('titleScreen')">タイトルへ</button>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    // =============================
+    // 仮問題データ
+    // 後でここをGASやJSON読み込みに差し替える想定
+    // =============================
+    const questions = [
+      {
+        id: "s1b1001",
+        subject: "science",
+        grade: 1,
+        field: "biology",
+        unit_code: "b1",
+        unit_name: "植物の分類",
+        q_no: "001",
+        question: "種子をつくらず、胞子でふえる植物を何という？",
+        answer: "シダ植物",
+        alt: ["しだ植物", "シダ"],
+        choices: ["裸子植物", "被子植物", "シダ植物", "双子葉類"],
+        explanation: "シダ植物は種子をつくらず、胞子でふえる植物です。"
+      },
+      {
+        id: "s1b1002",
+        subject: "science",
+        grade: 1,
+        field: "biology",
+        unit_code: "b1",
+        unit_name: "植物の分類",
+        q_no: "002",
+        question: "胚珠が子房の中にある植物を何という？",
+        answer: "被子植物",
+        alt: ["ひし植物"],
+        choices: ["被子植物", "裸子植物", "シダ植物", "コケ植物"],
+        explanation: "被子植物は胚珠が子房に包まれている植物です。"
+      },
+      {
+        id: "s1b1003",
+        subject: "science",
+        grade: 1,
+        field: "biology",
+        unit_code: "b1",
+        unit_name: "植物の分類",
+        q_no: "003",
+        question: "マツやスギのように、胚珠がむき出しになっている植物を何という？",
+        answer: "裸子植物",
+        alt: ["らし植物"],
+        choices: ["シダ植物", "被子植物", "裸子植物", "コケ植物"],
+        explanation: "裸子植物は子房がなく、胚珠がむき出しになっています。"
+      },
+      {
+        id: "s1b1004",
+        subject: "science",
+        grade: 1,
+        field: "biology",
+        unit_code: "b1",
+        unit_name: "植物の分類",
+        q_no: "004",
+        question: "葉脈が網目状になっている被子植物の仲間を何という？",
+        answer: "双子葉類",
+        alt: ["双子葉植物", "双子葉"],
+        choices: ["単子葉類", "双子葉類", "裸子植物", "シダ植物"],
+        explanation: "双子葉類は網状脈をもつものが多いです。"
+      },
+      {
+        id: "s1b1005",
+        subject: "science",
+        grade: 1,
+        field: "biology",
+        unit_code: "b1",
+        unit_name: "植物の分類",
+        q_no: "005",
+        question: "イネやユリのように、葉脈が平行になっている植物の仲間を何という？",
+        answer: "単子葉類",
+        alt: ["単子葉植物", "単子葉"],
+        choices: ["双子葉類", "被子植物", "単子葉類", "裸子植物"],
+        explanation: "単子葉類は平行脈をもつものが多いです。"
+      },
+      {
+        id: "s1b1006",
+        subject: "science",
+        grade: 1,
+        field: "biology",
+        unit_code: "b1",
+        unit_name: "植物の分類",
+        q_no: "006",
+        question: "根・茎・葉の区別があり、胞子でふえる植物を何という？",
+        answer: "シダ植物",
+        alt: ["しだ植物", "シダ"],
+        choices: ["コケ植物", "裸子植物", "被子植物", "シダ植物"],
+        explanation: "シダ植物には根・茎・葉の区別があります。"
+      },
+      {
+        id: "s1b1007",
+        subject: "science",
+        grade: 1,
+        field: "biology",
+        unit_code: "b1",
+        unit_name: "植物の分類",
+        q_no: "007",
+        question: "根・茎・葉の区別がはっきりせず、湿った場所に多い植物を何という？",
+        answer: "コケ植物",
+        alt: ["こけ植物", "コケ"],
+        choices: ["シダ植物", "裸子植物", "被子植物", "コケ植物"],
+        explanation: "コケ植物は体のつくりが単純で、湿った場所に多く見られます。"
+      },
+      {
+        id: "s1b1008",
+        subject: "science",
+        grade: 1,
+        field: "biology",
+        unit_code: "b1",
+        unit_name: "植物の分類",
+        q_no: "008",
+        question: "被子植物のうち、子葉が1枚の植物を何という？",
+        answer: "単子葉類",
+        alt: ["単子葉植物", "単子葉"],
+        choices: ["双子葉類", "裸子植物", "単子葉類", "シダ植物"],
+        explanation: "単子葉類は芽生えのときの子葉が1枚です。"
+      },
+      {
+        id: "s1b1009",
+        subject: "science",
+        grade: 1,
+        field: "biology",
+        unit_code: "b1",
+        unit_name: "植物の分類",
+        q_no: "009",
+        question: "被子植物のうち、子葉が2枚の植物を何という？",
+        answer: "双子葉類",
+        alt: ["双子葉植物", "双子葉"],
+        choices: ["単子葉類", "双子葉類", "裸子植物", "コケ植物"],
+        explanation: "双子葉類は芽生えのときの子葉が2枚です。"
+      },
+      {
+        id: "s1b1010",
+        subject: "science",
+        grade: 1,
+        field: "biology",
+        unit_code: "b1",
+        unit_name: "植物の分類",
+        q_no: "010",
+        question: "アサガオのように、主根と側根の区別がある植物の仲間を何という？",
+        answer: "双子葉類",
+        alt: ["双子葉植物", "双子葉"],
+        choices: ["単子葉類", "裸子植物", "双子葉類", "シダ植物"],
+        explanation: "双子葉類には主根と側根の区別があるものが多いです。"
+      },
+      {
+        id: "s1b1011",
+        subject: "science",
+        grade: 1,
+        field: "biology",
+        unit_code: "b2",
+        unit_name: "花のつくり",
+        q_no: "011",
+        question: "花粉が入っている袋を何という？",
+        answer: "やく",
+        alt: ["葯"],
+        choices: ["やく", "柱頭", "子房", "胚珠"],
+        explanation: "おしべの先にある袋をやくといい、中に花粉が入っています。"
+      },
+      {
+        id: "s1b1012",
+        subject: "science",
+        grade: 1,
+        field: "biology",
+        unit_code: "b2",
+        unit_name: "花のつくり",
+        q_no: "012",
+        question: "めしべの先端で、花粉がつく部分を何という？",
+        answer: "柱頭",
+        alt: ["ちゅうとう"],
+        choices: ["柱頭", "やく", "がく", "花弁"],
+        explanation: "めしべの先端にある、花粉がつく部分を柱頭といいます。"
+      },
+      {
+        id: "s1b1013",
+        subject: "science",
+        grade: 1,
+        field: "biology",
+        unit_code: "b2",
+        unit_name: "花のつくり",
+        q_no: "013",
+        question: "受粉後、果実になる部分を何という？",
+        answer: "子房",
+        alt: ["しぼう"],
+        choices: ["子房", "胚珠", "花弁", "柱頭"],
+        explanation: "受粉後、子房は果実になります。"
+      },
+      {
+        id: "s1b1014",
+        subject: "science",
+        grade: 1,
+        field: "biology",
+        unit_code: "b2",
+        unit_name: "花のつくり",
+        q_no: "014",
+        question: "受粉後、種子になる部分を何という？",
+        answer: "胚珠",
+        alt: ["はいしゅ"],
+        choices: ["胚珠", "子房", "やく", "花弁"],
+        explanation: "受粉後、胚珠は種子になります。"
+      },
+      {
+        id: "s1b1015",
+        subject: "science",
+        grade: 1,
+        field: "biology",
+        unit_code: "b3",
+        unit_name: "光合成と呼吸",
+        q_no: "015",
+        question: "植物が光を使って養分をつくるはたらきを何という？",
+        answer: "光合成",
+        alt: ["こうごうせい"],
+        choices: ["光合成", "呼吸", "蒸散", "発芽"],
+        explanation: "植物は光を使ってデンプンなどの養分をつくります。"
+      },
+      {
+        id: "s1b1016",
+        subject: "science",
+        grade: 1,
+        field: "biology",
+        unit_code: "b3",
+        unit_name: "光合成と呼吸",
+        q_no: "016",
+        question: "光合成が主に行われる細胞内のつくりを何という？",
+        answer: "葉緑体",
+        alt: ["ようりょくたい"],
+        choices: ["葉緑体", "核", "液胞", "細胞膜"],
+        explanation: "光合成は主に葉の細胞にある葉緑体で行われます。"
+      }
+    ];
+
+    const QUIZ_LENGTH = 10;
+    let quizQuestions = [];
+    let currentIndex = 0;
+    let sessionCoins = 0;
+    let inputCorrect = 0;
+    let choiceCorrect = 0;
+    let wrongQuestions = [];
+    let currentMode = "input";
+    let answered = false;
+
+    function showScreen(id) {
+      document.querySelectorAll('.screen').forEach(screen => screen.classList.remove('active'));
+      document.getElementById(id).classList.add('active');
+      updateCoinDisplay();
+    }
+
+    function getCoins() {
+      return Number(localStorage.getItem('scienceCoins') || 0);
+    }
+
+    function setCoins(value) {
+      localStorage.setItem('scienceCoins', String(value));
+      updateCoinDisplay();
+    }
+
+    function updateCoinDisplay() {
+      document.getElementById('coinDisplay').textContent = getCoins();
+    }
+
+    function resetCoins() {
+      if (confirm('理科コインを0に戻しますか？')) {
+        setCoins(0);
+      }
+    }
+
+    function createUnitList() {
+      const unitMap = new Map();
+      questions.forEach(q => {
+        if (!unitMap.has(q.unit_code)) {
+          unitMap.set(q.unit_code, {
+            code: q.unit_code,
+            name: q.unit_name,
+            count: 0
+          });
+        }
+        unitMap.get(q.unit_code).count++;
+      });
+
+      const unitList = document.getElementById('unitList');
+      unitList.innerHTML = '';
+
+      Array.from(unitMap.values()).forEach(unit => {
+        const label = document.createElement('label');
+        label.className = 'unit-card';
+        label.innerHTML = `
+          <input type="checkbox" value="${unit.code}" checked />
+          <div>
+            <div class="unit-title">${unit.name}</div>
+            <div class="unit-desc">${unit.count}問収録</div>
+          </div>
+        `;
+        unitList.appendChild(label);
+      });
+    }
+
+    function shuffle(array) {
+      const copy = [...array];
+      for (let i = copy.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [copy[i], copy[j]] = [copy[j], copy[i]];
+      }
+      return copy;
+    }
+
+    function startQuiz() {
+      const selectedUnits = Array.from(document.querySelectorAll('#unitList input:checked')).map(input => input.value);
+      if (selectedUnits.length === 0) {
+        alert('少なくとも1つの単元を選んでください。');
+        return;
+      }
+
+      const candidates = questions.filter(q => selectedUnits.includes(q.unit_code));
+      if (candidates.length === 0) {
+        alert('選択した単元に問題がありません。');
+        return;
+      }
+
+      quizQuestions = shuffle(candidates).slice(0, Math.min(QUIZ_LENGTH, candidates.length));
+      currentIndex = 0;
+      sessionCoins = 0;
+      inputCorrect = 0;
+      choiceCorrect = 0;
+      wrongQuestions = [];
+      document.getElementById('totalNumber').textContent = quizQuestions.length;
+      showScreen('quizScreen');
+      showQuestion();
+    }
+
+    function showQuestion() {
+      const q = quizQuestions[currentIndex];
+      currentMode = "input";
+      answered = false;
+
+      document.getElementById('currentNumber').textContent = currentIndex + 1;
+      document.getElementById('sessionCoinDisplay').textContent = sessionCoins;
+      document.getElementById('questionMeta').textContent = `${q.unit_name} / ID: ${q.id}`;
+      document.getElementById('questionText').textContent = q.question;
+      document.getElementById('answerInput').value = '';
+      document.getElementById('answerInput').disabled = false;
+      document.getElementById('answerInput').focus();
+      document.getElementById('choices').innerHTML = '';
+      document.getElementById('choices').classList.remove('show');
+      document.getElementById('feedback').className = 'feedback';
+      document.getElementById('feedback').textContent = '';
+      document.getElementById('answerButton').disabled = false;
+      document.getElementById('choiceButton').disabled = false;
+      document.getElementById('nextButton').disabled = true;
+
+      const percent = (currentIndex / quizQuestions.length) * 100;
+      document.getElementById('progressFill').style.width = `${percent}%`;
+    }
+
+    function isCorrectAnswer(userAnswer, q) {
+      const validAnswers = [q.answer, ...(q.alt || [])].filter(Boolean);
+      return validAnswers.includes(userAnswer);
+    }
+
+    function checkInputAnswer() {
+      if (answered) return;
+      const q = quizQuestions[currentIndex];
+      const userAnswer = document.getElementById('answerInput').value.trim();
+
+      if (!userAnswer) {
+        alert('答えを入力してください。');
+        return;
+      }
+
+      if (isCorrectAnswer(userAnswer, q)) {
+        sessionCoins += 3;
+        inputCorrect++;
+        showFeedback(true, `正解！ 入力式で正解したので3コイン獲得。<br>${q.explanation}`);
+      } else {
+        wrongQuestions.push(q);
+        showFeedback(false, `不正解。正解は「${q.answer}」です。<br>${q.explanation}`);
+      }
+      finishQuestion();
+    }
+
+    function switchToChoices() {
+      if (answered) return;
+      currentMode = "choice";
+      document.getElementById('answerInput').disabled = true;
+      document.getElementById('answerButton').disabled = true;
+      document.getElementById('choiceButton').disabled = true;
+
+      const q = quizQuestions[currentIndex];
+      const choiceBox = document.getElementById('choices');
+      choiceBox.innerHTML = '';
+
+      shuffle(q.choices).forEach(choice => {
+        const btn = document.createElement('button');
+        btn.className = 'choice-btn';
+        btn.textContent = choice;
+        btn.onclick = () => checkChoiceAnswer(choice);
+        choiceBox.appendChild(btn);
+      });
+      choiceBox.classList.add('show');
+    }
+
+    function checkChoiceAnswer(choice) {
+      if (answered) return;
+      const q = quizQuestions[currentIndex];
+
+      if (choice === q.answer) {
+        sessionCoins += 1;
+        choiceCorrect++;
+        showFeedback(true, `正解！ 4択で正解したので1コイン獲得。<br>${q.explanation}`);
+      } else {
+        wrongQuestions.push(q);
+        showFeedback(false, `不正解。正解は「${q.answer}」です。<br>${q.explanation}`);
+      }
+      finishQuestion();
+    }
+
+    function showFeedback(isOk, message) {
+      const feedback = document.getElementById('feedback');
+      feedback.className = `feedback ${isOk ? 'ok' : 'ng'}`;
+      feedback.innerHTML = message;
+    }
+
+    function finishQuestion() {
+      answered = true;
+      document.getElementById('sessionCoinDisplay').textContent = sessionCoins;
+      document.getElementById('answerButton').disabled = true;
+      document.getElementById('choiceButton').disabled = true;
+      document.querySelectorAll('.choice-btn').forEach(btn => btn.disabled = true);
+      document.getElementById('nextButton').disabled = false;
+      document.getElementById('progressFill').style.width = `${((currentIndex + 1) / quizQuestions.length) * 100}%`;
+    }
+
+    function nextQuestion() {
+      currentIndex++;
+      if (currentIndex >= quizQuestions.length) {
+        showResult();
+      } else {
+        showQuestion();
+      }
+    }
+
+    function showResult() {
+      const totalCorrect = inputCorrect + choiceCorrect;
+      setCoins(getCoins() + sessionCoins);
+
+      document.getElementById('resultCorrect').textContent = `${totalCorrect}/${quizQuestions.length}`;
+      document.getElementById('resultInputCorrect').textContent = inputCorrect;
+      document.getElementById('resultChoiceCorrect').textContent = choiceCorrect;
+      document.getElementById('resultCoins').textContent = sessionCoins;
+
+      const wrongList = document.getElementById('wrongList');
+      wrongList.innerHTML = '';
+
+      if (wrongQuestions.length === 0) {
+        wrongList.innerHTML = '<p class="lead">全問正解！すばらしいです。</p>';
+      } else {
+        wrongQuestions.forEach(q => {
+          const item = document.createElement('div');
+          item.className = 'review-item';
+          item.innerHTML = `
+            <strong>${q.question}</strong><br>
+            <span class="small">正解：${q.answer}</span><br>
+            <span class="small">解説：${q.explanation}</span>
+          `;
+          wrongList.appendChild(item);
+        });
+      }
+
+      showScreen('resultScreen');
+    }
+
+    document.getElementById('answerInput').addEventListener('keydown', event => {
+      if (event.key === 'Enter' && !document.getElementById('answerButton').disabled) {
+        checkInputAnswer();
+      }
+    });
+
+    createUnitList();
+    updateCoinDisplay();
+  </script>
+</body>
+</html>
